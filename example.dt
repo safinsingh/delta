@@ -1,0 +1,18 @@
+import [std]
+
+a = fun(b) {
+	return b + 1
+}
+
+b = a(2)
+match b {
+	2 -> std.eprint("failed!")
+	3 -> std.print("success!")
+}
+
+if a(3) != a(2) {
+	c = 3 ^ 6
+	if c == 5 {
+		std.print(c)
+	}
+}

@@ -1,0 +1,5 @@
+[package]
+name = "delta"
+version = "0.1.0"
+authors = ["safinsingh <safin.singh@gmail.com>"]
+edition = "2018"

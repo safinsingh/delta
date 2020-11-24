@@ -1,13 +1,21 @@
 use std::fmt;
 
 #[derive(PartialEq, Debug)]
-enum TokenKind {
+pub(crate) enum TokenKind {
 	// Operators
 	Plus,
 	Minus,
 	Multiply,
 	Divide,
 	Mod,
+	LessEq,
+	GreaterEq,
+	Greater,
+	Less,
+	BitAnd,
+	BitOr,
+	BitNot,
+	Xor,
 
 	// Keywords
 	True,
@@ -27,16 +35,9 @@ enum TokenKind {
 	Colon,
 	Comma,
 	Period,
-	LessEq,
-	GreaterEq,
-	Greater,
-	Less,
 	And,
 	Or,
 	Not,
-	BitAnd,
-	BitOr,
-	Xor,
 	Assign,
 	Equate,
 	MatchArm,
@@ -47,11 +48,12 @@ enum TokenKind {
 	Ident(String),
 	Undefined(String),
 	Comment(String),
+	Newline,
 }
 
 #[derive(PartialEq)]
 pub(crate) struct Token {
-	kind: TokenKind,
+	pub(crate) kind: TokenKind,
 	span: (usize, usize),
 }
 
@@ -177,13 +179,22 @@ impl<'a> Lexer<'a> {
 		})
 	}
 
-	fn whitespace(&mut self, ch: char) -> Option<Token> {
+	fn whitespace(&mut self) -> Option<Token> {
 		self.translate(1);
-		if ch == '\n' {
-			self.cursor.0 += 1;
-			self.cursor.1 = 0;
-		}
 		self.next()
+	}
+
+	fn newline(&mut self) -> Option<Token> {
+		let token = Token {
+			kind: TokenKind::Newline,
+			span: self.cursor,
+		};
+
+		self.translate(1);
+		self.cursor.0 += 1;
+		self.cursor.1 = 0;
+
+		Some(token)
 	}
 
 	fn number(&mut self) -> Option<Token> {
@@ -254,7 +265,8 @@ impl<'a> Iterator for Lexer<'a> {
 			'\0' => None,
 			'/' if next_char == Some('/') => self.comment(),
 			'"' => self.string(),
-			' ' | '\t' | '\n' => self.whitespace(current_char.unwrap()),
+			'\n' => self.newline(),
+			' ' | '\t' => self.whitespace(),
 			'=' if next_char == Some('=') => {
 				self.double_char_token(TokenKind::Equate)
 			}
@@ -289,6 +301,7 @@ impl<'a> Iterator for Lexer<'a> {
 			}
 			'&' => self.single_char_token(TokenKind::BitAnd),
 			'|' => self.single_char_token(TokenKind::BitOr),
+			'~' => self.single_char_token(TokenKind::BitNot),
 			'^' => self.single_char_token(TokenKind::Xor),
 			'!' => self.single_char_token(TokenKind::Not),
 			':' => self.single_char_token(TokenKind::Colon),
@@ -312,7 +325,13 @@ mod test {
 		let input = "\n";
 		let mut lexer = Lexer::new(input);
 
-		assert_eq!(None, lexer.next())
+		assert_eq!(
+			Token {
+				kind: TokenKind::Newline,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
 	}
 
 	#[test]
@@ -325,6 +344,10 @@ mod test {
 				Token {
 					kind: TokenKind::Comment("hello world!".into()),
 					span: (1, 0)
+				},
+				Token {
+					kind: TokenKind::Newline,
+					span: (1, 14)
 				},
 				Token {
 					kind: TokenKind::Comment("test!".into()),
@@ -466,107 +489,203 @@ mod test {
 	}
 
 	#[test]
-	fn lex_bin_ops() {
-		let input = "+-*/%";
-		let lexer = Lexer::new(input).collect::<Vec<_>>();
+	fn lex_plus() {
+		let input = "+";
+		let mut lexer = Lexer::new(input);
 
 		assert_eq!(
-			vec![
-				Token {
-					kind: TokenKind::Plus,
-					span: (1, 0)
-				},
-				Token {
-					kind: TokenKind::Minus,
-					span: (1, 1)
-				},
-				Token {
-					kind: TokenKind::Multiply,
-					span: (1, 2)
-				},
-				Token {
-					kind: TokenKind::Divide,
-					span: (1, 3)
-				},
-				Token {
-					kind: TokenKind::Mod,
-					span: (1, 4)
-				}
-			],
-			lexer
+			Token {
+				kind: TokenKind::Plus,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
 		)
 	}
 
 	#[test]
-	fn lex_comparison_ops() {
-		let input = "> < <= >=";
-		let lexer = Lexer::new(input).collect::<Vec<_>>();
+	fn lex_minus() {
+		let input = "-";
+		let mut lexer = Lexer::new(input);
 
 		assert_eq!(
-			vec![
-				Token {
-					kind: TokenKind::Greater,
-					span: (1, 0)
-				},
-				Token {
-					kind: TokenKind::Less,
-					span: (1, 2)
-				},
-				Token {
-					kind: TokenKind::LessEq,
-					span: (1, 4)
-				},
-				Token {
-					kind: TokenKind::GreaterEq,
-					span: (1, 7)
-				},
-			],
-			lexer
+			Token {
+				kind: TokenKind::Minus,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
 		)
 	}
 
 	#[test]
-	fn lex_bitwise_ops() {
-		let input = "| &";
-		let lexer = Lexer::new(input).collect::<Vec<_>>();
+	fn lex_multiply() {
+		let input = "*";
+		let mut lexer = Lexer::new(input);
 
 		assert_eq!(
-			vec![
-				Token {
-					kind: TokenKind::BitOr,
-					span: (1, 0)
-				},
-				Token {
-					kind: TokenKind::BitAnd,
-					span: (1, 2)
-				},
-			],
-			lexer
+			Token {
+				kind: TokenKind::Multiply,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
 		)
 	}
 
 	#[test]
-	fn lex_logical_ops() {
-		let input = "|| &&";
-		let lexer = Lexer::new(input).collect::<Vec<_>>();
+	fn lex_divide() {
+		let input = "/";
+		let mut lexer = Lexer::new(input);
 
 		assert_eq!(
-			vec![
-				Token {
-					kind: TokenKind::Or,
-					span: (1, 0)
-				},
-				Token {
-					kind: TokenKind::And,
-					span: (1, 3)
-				},
-			],
-			lexer
+			Token {
+				kind: TokenKind::Divide,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
 		)
 	}
 
 	#[test]
-	fn lex_not() {
+	fn lex_mod() {
+		let input = "%";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::Mod,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_greater() {
+		let input = ">";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::Greater,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_less() {
+		let input = "<";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::Less,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_greater_equal() {
+		let input = ">=";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::GreaterEq,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_less_equal() {
+		let input = "<=";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::LessEq,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_bitwise_or() {
+		let input = "|";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::BitOr,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_bitwise_and() {
+		let input = "&";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::BitAnd,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_bitwise_not() {
+		let input = "~";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::BitNot,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_logical_or() {
+		let input = "||";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::Or,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_logical_and() {
+		let input = "&&";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::And,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_logical_not() {
 		let input = "!";
 		let mut lexer = Lexer::new(input);
 

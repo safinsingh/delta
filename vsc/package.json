@@ -1,0 +1,35 @@
+{
+	"name": "delta-vsc",
+	"displayName": "Delta Grammar",
+	"description": "Syntax highlighting for the Delta programming language",
+	"version": "0.1.0",
+	"publisher": "safinsingh",
+	"engines": {
+		"vscode": "^1.51.0"
+	},
+	"categories": [
+		"Programming Languages"
+	],
+	"contributes": {
+		"languages": [
+			{
+				"id": "delta",
+				"aliases": [
+					"Delta",
+					"delta"
+				],
+				"extensions": [
+					".dt"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "delta",
+				"scopeName": "source.delta",
+				"path": "./syntaxes/delta.tmLanguage.json"
+			}
+		]
+	}
+}

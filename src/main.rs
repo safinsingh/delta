@@ -1,6 +1,8 @@
-use std::{env, fs, io, io::Write};
+use std::{env, fs, io};
 
 mod lexer;
+mod repl;
+
 use lexer::Lexer;
 
 fn main() -> io::Result<()> {
@@ -8,30 +10,7 @@ fn main() -> io::Result<()> {
 
 	match args.len() {
 		1 => {
-			println!("Delta v0.1.0 REPL");
-			println!("Type `exit` to exit.");
-
-			loop {
-				print!("◭ ");
-				if let Err(e) = io::stdout().flush() {
-					panic!("Fatal error: failed to flush stdout: {}", e)
-				}
-
-				let mut input = String::new();
-				io::stdin()
-					.read_line(&mut input)
-					.expect("error: unable to read user input");
-
-				match input.trim() {
-					"exit" => break,
-					_ => {
-						let lex = Lexer::new(input.trim());
-						for lexed in lex {
-							println!("{:?}", lexed)
-						}
-					}
-				}
-			}
+			repl::repl()?;
 		}
 		_ => {
 			args.remove(0);

@@ -1,13 +1,13 @@
 import [std]
 
-a = fun(b) {
+fun a(b) {
 	return b + 1
 }
 
 b = a(2)
 match b {
-	2 -> std.eprint("failed!")
 	3 -> std.print("success!")
+	2 -> std.eprint("failed!")
 }
 
 if a(3) != a(2) {

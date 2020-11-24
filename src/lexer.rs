@@ -266,7 +266,6 @@ impl<'a> Iterator for Lexer<'a> {
 			return None;
 		}
 		match current_char.unwrap() {
-			'\0' => None,
 			'/' if next_char == Some('/') => self.comment(),
 			'"' => self.string(),
 			'\n' => self.delimeter(true),

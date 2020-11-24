@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum TokenKind {
-	// Operators
+	// Infix Operators
 	Plus,
 	Minus,
 	Multiply,
@@ -14,8 +14,15 @@ pub(crate) enum TokenKind {
 	Less,
 	BitAnd,
 	BitOr,
-	BitNot,
 	Xor,
+	And,
+	Or,
+	Assign,
+	Equate,
+
+	// Prefix Operators
+	BitNot,
+	Not,
 
 	// Keywords
 	True,
@@ -35,11 +42,6 @@ pub(crate) enum TokenKind {
 	Colon,
 	Comma,
 	Period,
-	And,
-	Or,
-	Not,
-	Assign,
-	Equate,
 	MatchArm,
 
 	// Misc
@@ -48,7 +50,7 @@ pub(crate) enum TokenKind {
 	Ident(String),
 	Undefined(String),
 	Comment(String),
-	Newline,
+	Delimeter,
 }
 
 #[derive(PartialEq)]
@@ -184,15 +186,17 @@ impl<'a> Lexer<'a> {
 		self.next()
 	}
 
-	fn newline(&mut self) -> Option<Token> {
+	fn delimeter(&mut self, increment: bool) -> Option<Token> {
 		let token = Token {
-			kind: TokenKind::Newline,
+			kind: TokenKind::Delimeter,
 			span: self.cursor,
 		};
 
 		self.translate(1);
-		self.cursor.0 += 1;
-		self.cursor.1 = 0;
+		if increment {
+			self.cursor.0 += 1;
+			self.cursor.1 = 0;
+		}
 
 		Some(token)
 	}
@@ -265,7 +269,8 @@ impl<'a> Iterator for Lexer<'a> {
 			'\0' => None,
 			'/' if next_char == Some('/') => self.comment(),
 			'"' => self.string(),
-			'\n' => self.newline(),
+			'\n' => self.delimeter(true),
+			';' => self.delimeter(false),
 			' ' | '\t' => self.whitespace(),
 			'=' if next_char == Some('=') => {
 				self.double_char_token(TokenKind::Equate)
@@ -327,7 +332,7 @@ mod test {
 
 		assert_eq!(
 			Token {
-				kind: TokenKind::Newline,
+				kind: TokenKind::Delimeter,
 				span: (1, 0)
 			},
 			lexer.next().unwrap()
@@ -346,7 +351,7 @@ mod test {
 					span: (1, 0)
 				},
 				Token {
-					kind: TokenKind::Newline,
+					kind: TokenKind::Delimeter,
 					span: (1, 14)
 				},
 				Token {

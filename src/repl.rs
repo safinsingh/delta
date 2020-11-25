@@ -1,4 +1,8 @@
-use crate::lexer::Lexer;
+use crate::{
+	lexer::Lexer,
+	parser::{gen_parse_tree, Parser},
+};
+
 use std::{io, io::Write};
 
 const REPL_CHAR: &str = "◭ ";
@@ -18,10 +22,11 @@ pub(crate) fn repl() -> io::Result<()> {
 		match input.trim() {
 			"exit" => break,
 			_ => {
-				let lex = Lexer::new(input.trim());
-				for lexed in lex {
-					println!("{:?}", lexed)
-				}
+				let tok_stream = Lexer::new(input.trim());
+				let stack = Parser::new(tok_stream).parse();
+				let tree = gen_parse_tree(stack);
+
+				println!("{:#?}", tree);
 			}
 		}
 	}

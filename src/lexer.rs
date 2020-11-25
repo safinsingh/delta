@@ -1,7 +1,7 @@
 use std::fmt;
 
-#[derive(PartialEq, Debug)]
-pub(crate) enum TokenKind {
+#[derive(PartialEq, Debug, Clone)]
+pub enum TokenKind {
 	// Infix Operators
 	Plus,
 	Minus,
@@ -53,10 +53,10 @@ pub(crate) enum TokenKind {
 	Delimeter,
 }
 
-#[derive(PartialEq)]
-pub(crate) struct Token {
+#[derive(PartialEq, Clone)]
+pub struct Token {
 	pub(crate) kind: TokenKind,
-	span: (usize, usize),
+	pub(crate) span: (usize, usize),
 }
 
 impl fmt::Debug for Token {
@@ -69,7 +69,8 @@ impl fmt::Debug for Token {
 	}
 }
 
-pub(crate) struct Lexer<'a> {
+#[derive(Copy, Clone)]
+pub struct Lexer<'a> {
 	input: &'a str,
 	position: usize,
 	cursor: (usize, usize),

@@ -19,7 +19,9 @@
   - [x] idents/keywords
   - [x] comments
   - [x] delimeters (both `\n` and `;`)
-- [ ] parser
+- [~] parser
+  - [ ] `[IN-PROGRESS]` convert token stream to postfix ops
+  - [ ] `[IN-PROGRESS]` parse tree generator
   - [ ] ast
   - [ ] `[LONG-TERM]` type-check tree
   - [ ] bytecode generator

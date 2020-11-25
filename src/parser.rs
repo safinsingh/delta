@@ -82,12 +82,7 @@ pub enum Node {
 
 impl Node {
 	fn is_unary_op_ready_node(&self) -> bool {
-		match self {
-			Self::UnaryExpr { op: _, rhs: _ } => true,
-			Self::NumberLiteral(_) => true,
-			Self::IdentLiteral(_) => true,
-			_ => false,
-		}
+		matches!(self, Self::UnaryExpr { op: _, rhs: _ } | Self::NumberLiteral(_) | Self::IdentLiteral(_))
 	}
 }
 
@@ -165,7 +160,7 @@ impl<'a> Parser<'a> {
 	}
 }
 
-pub fn gen_parse_tree(out_stack: Vec<TokenKind>) -> Box<Node> {
+pub fn gen_parse_tree(out_stack: Vec<TokenKind>) -> Node {
 	let mut node_stack = Vec::new();
 
 	for token in &out_stack {
@@ -173,33 +168,29 @@ pub fn gen_parse_tree(out_stack: Vec<TokenKind>) -> Box<Node> {
 			&& (node_stack.last().is_none()
 				|| node_stack
 					.iter()
-					.all(|node: &Box<Node>| node.is_unary_op_ready_node()))
+					.all(|node: &Node| node.is_unary_op_ready_node()))
 		{
-			let rhs = node_stack.pop().unwrap();
-			node_stack.push(Box::from(Node::UnaryExpr {
+			let rhs = Box::new(node_stack.pop().unwrap());
+			node_stack.push(Node::UnaryExpr {
 				op: token.clone(),
 				rhs,
-			}))
+			});
 		} else if token.is_op() {
-			let rhs = node_stack.pop().unwrap();
-			let lhs = node_stack.pop().unwrap();
+			let rhs = Box::new(node_stack.pop().unwrap());
+			let lhs = Box::new(node_stack.pop().unwrap());
 
-			node_stack.push(Box::from(Node::BinExpr {
+			node_stack.push(Node::BinExpr {
 				op: token.clone(),
 				lhs,
 				rhs,
-			}))
+			})
 		} else {
 			match token.clone() {
-				TokenKind::Ident(i) => {
-					node_stack.push(Box::from(Node::IdentLiteral(i)))
-				}
+				TokenKind::Ident(i) => node_stack.push(Node::IdentLiteral(i)),
 				TokenKind::Number(num) => {
-					node_stack.push(Box::from(Node::NumberLiteral(num)))
+					node_stack.push(Node::NumberLiteral(num))
 				}
-				TokenKind::String(s) => {
-					node_stack.push(Box::from(Node::StringLiteral(s)))
-				}
+				TokenKind::String(s) => node_stack.push(Node::StringLiteral(s)),
 				_ => panic!("Unrecognized non-op token!"),
 			}
 		}
@@ -249,23 +240,23 @@ mod test {
 		let tree = gen_parse_tree(stack);
 
 		assert_eq!(
-			Box::new(BinExpr {
+			BinExpr {
 				op: Plus,
-				lhs: Box::from(BinExpr {
+				lhs: Box::new(BinExpr {
 					op: Multiply,
-					lhs: Box::from(IdentLiteral("A".into())),
-					rhs: Box::from(BinExpr {
+					lhs: Box::new(IdentLiteral("A".into())),
+					rhs: Box::new(BinExpr {
 						op: Plus,
-						lhs: Box::from(IdentLiteral("B".into())),
-						rhs: Box::from(BinExpr {
+						lhs: Box::new(IdentLiteral("B".into())),
+						rhs: Box::new(BinExpr {
 							op: Multiply,
-							lhs: Box::from(IdentLiteral("C".into())),
-							rhs: Box::from(IdentLiteral("D".into())),
+							lhs: Box::new(IdentLiteral("C".into())),
+							rhs: Box::new(IdentLiteral("D".into())),
 						}),
 					}),
 				}),
-				rhs: Box::from(IdentLiteral("E".into())),
-			}),
+				rhs: Box::new(IdentLiteral("E".into())),
+			},
 			tree
 		);
 	}
@@ -278,7 +269,7 @@ mod test {
 
 		assert_eq!(
 			tree,
-			Box::new(BinExpr {
+			BinExpr {
 				op: Minus,
 				lhs: Box::new(BinExpr {
 					op: Plus,
@@ -294,7 +285,7 @@ mod test {
 					}),
 				}),
 				rhs: Box::new(IdentLiteral("Y".into())),
-			})
+			}
 		);
 	}
 }

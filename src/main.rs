@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_wraps)]
+
 use std::{env, fs, io};
 
 mod lexer;

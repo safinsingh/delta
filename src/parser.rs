@@ -25,23 +25,20 @@ impl TokenKind {
 	fn is_op(&self) -> bool { self.get_precedence() > 0 }
 
 	fn is_bin_op(&self) -> bool {
-		match self {
+		matches!(
+			self,
 			TokenKind::Multiply
-			| TokenKind::Divide
-			| TokenKind::Mod
-			| TokenKind::Plus
-			| TokenKind::Minus
-			| TokenKind::Greater
-			| TokenKind::GreaterEq
-			| TokenKind::Less
-			| TokenKind::LessEq
-			| TokenKind::BitAnd
-			| TokenKind::Xor
-			| TokenKind::BitOr
-			| TokenKind::And
-			| TokenKind::Or => true,
-			_ => false,
-		}
+				| TokenKind::Divide
+				| TokenKind::Mod | TokenKind::Plus
+				| TokenKind::Minus
+				| TokenKind::Greater
+				| TokenKind::GreaterEq
+				| TokenKind::Less
+				| TokenKind::LessEq
+				| TokenKind::BitAnd
+				| TokenKind::Xor | TokenKind::BitOr
+				| TokenKind::And | TokenKind::Or
+		)
 	}
 }
 
@@ -75,21 +72,16 @@ impl<'a> Parser<'a> {
 
 		for token in self.tokens {
 			if token.kind.is_op() {
-				if self.op_stack.len() == 0
+				if self.op_stack.is_empty()
 					|| self.op_stack.last() == Some(&TokenKind::LParen)
+					|| token.kind == TokenKind::LParen
 				{
-					self.op_stack.push(token.kind);
-				} else if token.kind == TokenKind::LParen {
 					self.op_stack.push(token.kind);
 				} else if token.kind == TokenKind::RParen {
 					while self.op_stack.last() != Some(&TokenKind::LParen) {
 						out_stack.push(self.op_stack.pop().unwrap());
 					}
 					self.op_stack.pop();
-				} else if token.kind.get_precedence()
-					> self.op_stack.last().unwrap().get_precedence()
-				{
-					self.op_stack.push(token.kind);
 				} else if token.kind.get_precedence()
 					> self.op_stack.last().unwrap().get_precedence()
 				{
@@ -120,18 +112,18 @@ impl<'a> Parser<'a> {
 pub fn gen_parse_tree(out_stack: Vec<TokenKind>) -> Box<Node> {
 	let mut node_stack = Vec::new();
 
-	for idx in 0..out_stack.len() {
-		if out_stack[idx].is_bin_op() {
+	for token in &out_stack {
+		if token.is_bin_op() {
 			let rhs = node_stack.pop().unwrap();
 			let lhs = node_stack.pop().unwrap();
 
 			node_stack.push(Box::from(Node::BinExpr {
-				op: out_stack[idx].clone(),
+				op: token.clone(),
 				lhs,
 				rhs,
 			}))
 		} else {
-			match out_stack[idx].clone() {
+			match token.clone() {
 				TokenKind::Ident(i) => {
 					node_stack.push(Box::from(Node::IdentLiteral(i)))
 				}

@@ -1,4 +1,4 @@
-use crate::lexer::{Lexer, TokenKind};
+use crate::lexer::{Lexer, Token, TokenKind};
 
 impl TokenKind {
 	fn get_precedence(&self) -> u8 {
@@ -82,19 +82,8 @@ impl<'a> Parser<'a> {
 						out_stack.push(self.op_stack.pop().unwrap());
 					}
 					self.op_stack.pop();
-				} else if token.kind.get_precedence()
-					> self.op_stack.last().unwrap().get_precedence()
-				{
-					self.op_stack.push(token.kind);
-				} else if token.kind.get_precedence()
-					== self.op_stack.last().unwrap().get_precedence()
-				{
-					// if precedence is the same, compare associativity
-				} else if token.kind.get_precedence()
-					< self.op_stack.last().unwrap().get_precedence()
-				{
-					out_stack.push(self.op_stack.pop().unwrap());
-					self.op_stack.push(token.kind);
+				} else {
+					self.precedence_based_pushpop(&mut out_stack, token);
 				}
 			} else {
 				out_stack.push(token.kind);
@@ -106,6 +95,29 @@ impl<'a> Parser<'a> {
 		// TODO: error handling: op stack should be empty (specifically, it
 		// should be parenthesis-free)
 		out_stack
+	}
+
+	fn precedence_based_pushpop(
+		&mut self,
+		out_stack: &mut Vec<TokenKind>,
+		token: Token,
+	) {
+		if token.kind.is_op() {
+			if let Some(last) = self.op_stack.last() {
+				if token.kind.get_precedence() > last.get_precedence() {
+					self.op_stack.push(token.kind);
+				} else if token.kind.get_precedence() == last.get_precedence() {
+					// if precedence is the same, compare associativity
+				} else if token.kind.get_precedence() < last.get_precedence() {
+					out_stack.push(self.op_stack.pop().unwrap());
+					self.precedence_based_pushpop(out_stack, token);
+				}
+			} else {
+				self.op_stack.push(token.kind);
+			}
+		} else {
+			self.op_stack.push(token.kind);
+		}
 	}
 }
 

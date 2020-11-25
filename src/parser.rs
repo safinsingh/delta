@@ -1,6 +1,36 @@
 use crate::lexer::{Lexer, Token, TokenKind};
 
+use std::cmp::Ordering;
+
+enum Association {
+	LTR,
+	RTL,
+	None,
+}
+
 impl TokenKind {
+	fn get_associativity(&self) -> Association {
+		match self {
+			TokenKind::LParen | TokenKind::RParen => Association::LTR,
+			TokenKind::Multiply | TokenKind::Divide | TokenKind::Mod => {
+				Association::LTR
+			}
+			TokenKind::Plus | TokenKind::Minus => Association::LTR,
+			TokenKind::Greater
+			| TokenKind::GreaterEq
+			| TokenKind::Less
+			| TokenKind::LessEq => Association::LTR,
+			TokenKind::Equate => Association::LTR,
+			TokenKind::BitAnd => Association::LTR,
+			TokenKind::Xor => Association::LTR,
+			TokenKind::BitOr => Association::LTR,
+			TokenKind::And => Association::LTR,
+			TokenKind::Or => Association::LTR,
+			TokenKind::Assign => Association::RTL,
+			_ => Association::None,
+		}
+	}
+
 	fn get_precedence(&self) -> u8 {
 		match self {
 			TokenKind::LParen | TokenKind::RParen => 12,
@@ -24,21 +54,8 @@ impl TokenKind {
 
 	fn is_op(&self) -> bool { self.get_precedence() > 0 }
 
-	fn is_bin_op(&self) -> bool {
-		matches!(
-			self,
-			TokenKind::Multiply
-				| TokenKind::Divide
-				| TokenKind::Mod | TokenKind::Plus
-				| TokenKind::Minus
-				| TokenKind::Greater
-				| TokenKind::GreaterEq
-				| TokenKind::Less
-				| TokenKind::LessEq
-				| TokenKind::BitAnd
-				| TokenKind::Xor | TokenKind::BitOr
-				| TokenKind::And | TokenKind::Or
-		)
+	fn is_un_op(&self) -> bool {
+		matches!(self, TokenKind::Minus | TokenKind::Not | TokenKind::BitNot)
 	}
 }
 
@@ -54,9 +71,24 @@ pub enum Node {
 		lhs: Box<Node>,
 		rhs: Box<Node>,
 	},
+	UnaryExpr {
+		op: TokenKind,
+		rhs: Box<Node>,
+	},
 	NumberLiteral(f64),
 	IdentLiteral(String),
 	StringLiteral(String),
+}
+
+impl Node {
+	fn is_unary_op_ready_node(&self) -> bool {
+		match self {
+			Self::UnaryExpr { op: _, rhs: _ } => true,
+			Self::NumberLiteral(_) => true,
+			Self::IdentLiteral(_) => true,
+			_ => false,
+		}
+	}
 }
 
 impl<'a> Parser<'a> {
@@ -104,13 +136,25 @@ impl<'a> Parser<'a> {
 	) {
 		if token.kind.is_op() {
 			if let Some(last) = self.op_stack.last() {
-				if token.kind.get_precedence() > last.get_precedence() {
-					self.op_stack.push(token.kind);
-				} else if token.kind.get_precedence() == last.get_precedence() {
-					// if precedence is the same, compare associativity
-				} else if token.kind.get_precedence() < last.get_precedence() {
-					out_stack.push(self.op_stack.pop().unwrap());
-					self.precedence_based_pushpop(out_stack, token);
+				match token.kind.get_precedence().cmp(&last.get_precedence()) {
+					Ordering::Greater => self.op_stack.push(token.kind),
+					Ordering::Equal => match token.kind.get_associativity() {
+						Association::LTR => {
+							out_stack.push(self.op_stack.pop().unwrap());
+							self.op_stack.push(token.kind);
+						}
+						Association::RTL => {
+							self.op_stack.push(token.kind);
+						}
+						_ => panic!(
+							"Unexpected associativity check on non-operator \
+							 token!"
+						),
+					},
+					Ordering::Less => {
+						out_stack.push(self.op_stack.pop().unwrap());
+						self.precedence_based_pushpop(out_stack, token);
+					}
 				}
 			} else {
 				self.op_stack.push(token.kind);
@@ -125,7 +169,18 @@ pub fn gen_parse_tree(out_stack: Vec<TokenKind>) -> Box<Node> {
 	let mut node_stack = Vec::new();
 
 	for token in &out_stack {
-		if token.is_bin_op() {
+		if token.is_un_op()
+			&& (node_stack.last().is_none()
+				|| node_stack
+					.iter()
+					.all(|node: &Box<Node>| node.is_unary_op_ready_node()))
+		{
+			let rhs = node_stack.pop().unwrap();
+			node_stack.push(Box::from(Node::UnaryExpr {
+				op: token.clone(),
+				rhs,
+			}))
+		} else if token.is_op() {
 			let rhs = node_stack.pop().unwrap();
 			let lhs = node_stack.pop().unwrap();
 
@@ -145,7 +200,7 @@ pub fn gen_parse_tree(out_stack: Vec<TokenKind>) -> Box<Node> {
 				TokenKind::String(s) => {
 					node_stack.push(Box::from(Node::StringLiteral(s)))
 				}
-				_ => todo!("Unrecognized non-binary token!"),
+				_ => panic!("Unrecognized non-op token!"),
 			}
 		}
 	}
@@ -155,7 +210,7 @@ pub fn gen_parse_tree(out_stack: Vec<TokenKind>) -> Box<Node> {
 
 #[cfg(test)]
 mod test {
-	use super::*;
+	use super::{gen_parse_tree, Node::*, Parser, TokenKind::*};
 	use crate::Lexer;
 
 	#[test]
@@ -163,14 +218,7 @@ mod test {
 		let tok_stream = Lexer::new("1+1");
 		let stack = Parser::new(tok_stream).parse();
 
-		assert_eq!(
-			stack,
-			vec![
-				TokenKind::Number(1.),
-				TokenKind::Number(1.),
-				TokenKind::Plus
-			]
-		)
+		assert_eq!(stack, vec![Number(1.), Number(1.), Plus])
 	}
 
 	#[test]
@@ -181,15 +229,15 @@ mod test {
 		assert_eq!(
 			stack,
 			vec![
-				TokenKind::Ident("A".into()),
-				TokenKind::Ident("B".into()),
-				TokenKind::Ident("C".into()),
-				TokenKind::Ident("D".into()),
-				TokenKind::Multiply,
-				TokenKind::Plus,
-				TokenKind::Multiply,
-				TokenKind::Ident("E".into()),
-				TokenKind::Plus,
+				Ident("A".into()),
+				Ident("B".into()),
+				Ident("C".into()),
+				Ident("D".into()),
+				Multiply,
+				Plus,
+				Multiply,
+				Ident("E".into()),
+				Plus,
 			]
 		)
 	}
@@ -201,24 +249,52 @@ mod test {
 		let tree = gen_parse_tree(stack);
 
 		assert_eq!(
-			Box::new(Node::BinExpr {
-				op: TokenKind::Plus,
-				lhs: Box::from(Node::BinExpr {
-					op: TokenKind::Multiply,
-					lhs: Box::from(Node::IdentLiteral("A".into())),
-					rhs: Box::from(Node::BinExpr {
-						op: TokenKind::Plus,
-						lhs: Box::from(Node::IdentLiteral("B".into())),
-						rhs: Box::from(Node::BinExpr {
-							op: TokenKind::Multiply,
-							lhs: Box::from(Node::IdentLiteral("C".into())),
-							rhs: Box::from(Node::IdentLiteral("D".into())),
+			Box::new(BinExpr {
+				op: Plus,
+				lhs: Box::from(BinExpr {
+					op: Multiply,
+					lhs: Box::from(IdentLiteral("A".into())),
+					rhs: Box::from(BinExpr {
+						op: Plus,
+						lhs: Box::from(IdentLiteral("B".into())),
+						rhs: Box::from(BinExpr {
+							op: Multiply,
+							lhs: Box::from(IdentLiteral("C".into())),
+							rhs: Box::from(IdentLiteral("D".into())),
 						}),
 					}),
 				}),
-				rhs: Box::from(Node::IdentLiteral("E".into())),
+				rhs: Box::from(IdentLiteral("E".into())),
 			}),
 			tree
+		);
+	}
+
+	#[test]
+	fn parse_tree_from_postfix_stack_complex() {
+		let tok_stream = Lexer::new("B * C + A / Z - Y");
+		let stack = Parser::new(tok_stream).parse();
+		let tree = gen_parse_tree(stack);
+
+		assert_eq!(
+			tree,
+			Box::new(BinExpr {
+				op: Minus,
+				lhs: Box::new(BinExpr {
+					op: Plus,
+					lhs: Box::new(BinExpr {
+						op: Multiply,
+						lhs: Box::new(IdentLiteral("B".into())),
+						rhs: Box::new(IdentLiteral("C".into())),
+					}),
+					rhs: Box::new(BinExpr {
+						op: Divide,
+						lhs: Box::new(IdentLiteral("A".into())),
+						rhs: Box::new(IdentLiteral("Z".into())),
+					}),
+				}),
+				rhs: Box::new(IdentLiteral("Y".into())),
+			})
 		);
 	}
 }

@@ -20,10 +20,16 @@
   - [x] comments
   - [x] delimeters (both `\n` and `;`)
 - [ ] parser
-  - [ ] `[IN-PROGRESS]` convert token stream to postfix ops
-  - [ ] `[IN-PROGRESS]` parse tree generator
+  - [x] convert token stream to postfix ops
+  - [ ] parse tree generator
+    - [x] binary exprs
+    - [x] unary exprs
+    - [x] literals (i think)
+    - [ ] fn calls, fn defs
+    - [ ] match patterns
   - [ ] ast
   - [ ] `[LONG-TERM]` type-check tree
-  - [ ] bytecode generator
+  - [ ] `[LONG-TERM]` bytecode generator
+- [ ] evaluator
 - [ ] vm
   - [ ] error handling

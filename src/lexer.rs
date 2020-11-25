@@ -1,5 +1,3 @@
-use std::fmt;
-
 #[derive(PartialEq, Debug, Clone)]
 pub enum TokenKind {
 	// Infix Operators
@@ -53,20 +51,10 @@ pub enum TokenKind {
 	Delimeter,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Token {
 	pub(crate) kind: TokenKind,
 	pub(crate) span: (usize, usize),
-}
-
-impl fmt::Debug for Token {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(
-			f,
-			"[TOK] ({}, {})\t{:?}",
-			self.span.0, self.span.1, self.kind,
-		)
-	}
 }
 
 #[derive(Copy, Clone)]

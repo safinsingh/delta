@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
 				out_stack.push(token.kind);
 			}
 		}
-		for tok in self.op_stack.clone() {
+		for tok in self.op_stack.clone().into_iter().rev() {
 			out_stack.push(tok);
 		}
 		// TODO: error handling: op stack should be empty (specifically, it

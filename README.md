@@ -30,7 +30,7 @@
   - [ ] `[LONG-TERM]` type-check tree
   - [ ] `[LONG-TERM]` bytecode generator
 - [ ] evaluator
-  - [ ] impl std::ops::\* for NodeResult
+  - [ ] `impl std::ops::* for NodeResult`
     - [x] add
     - [x] sub
     - [x] (logical) not

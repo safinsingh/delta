@@ -1,18 +1,18 @@
 import [std]
 
-fun a(b) {
-	return b + 1
+fun add_one(in) {
+	return in + 1
 }
 
-b = a(2)
-match b {
+three = add_one(2)
+match three {
 	3 -> std.print("success!")
-	2 -> std.eprint("failed!")
+	2 -> std.print("failed!")
 }
 
-if a(3) != a(2) {
-	c = 3 ^ 6
-	if c == 5 {
+if add_one(3) != add_one(2) {
+	xor = 3 ^ 6
+	if xor == 5 {
 		std.print(c)
 	}
 }

@@ -2,6 +2,7 @@
 
 use std::{env, fs, io};
 
+mod eval;
 mod lexer;
 mod parser;
 mod repl;

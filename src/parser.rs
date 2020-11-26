@@ -11,22 +11,26 @@ enum Association {
 impl TokenKind {
 	fn get_associativity(&self) -> Association {
 		match self {
-			TokenKind::LParen | TokenKind::RParen => Association::LTR,
-			TokenKind::Multiply | TokenKind::Divide | TokenKind::Mod => {
-				Association::LTR
-			}
-			TokenKind::Plus | TokenKind::Minus => Association::LTR,
-			TokenKind::Greater
+			TokenKind::LParen
+			| TokenKind::RParen
+			| TokenKind::Multiply
+			| TokenKind::Divide
+			| TokenKind::Mod
+			| TokenKind::Plus
+			| TokenKind::Minus
+			| TokenKind::Greater
 			| TokenKind::GreaterEq
 			| TokenKind::Less
-			| TokenKind::LessEq => Association::LTR,
-			TokenKind::Equate => Association::LTR,
-			TokenKind::BitAnd => Association::LTR,
-			TokenKind::Xor => Association::LTR,
-			TokenKind::BitOr => Association::LTR,
-			TokenKind::And => Association::LTR,
-			TokenKind::Or => Association::LTR,
-			TokenKind::Assign => Association::RTL,
+			| TokenKind::LessEq
+			| TokenKind::Equate
+			| TokenKind::BitAnd
+			| TokenKind::Xor
+			| TokenKind::BitOr
+			| TokenKind::And
+			| TokenKind::Or => Association::LTR,
+			TokenKind::Assign | TokenKind::Not | TokenKind::BitNot => {
+				Association::RTL
+			}
 			_ => Association::None,
 		}
 	}
@@ -55,7 +59,7 @@ impl TokenKind {
 	fn is_op(&self) -> bool { self.get_precedence() > 0 }
 
 	fn is_un_op(&self) -> bool {
-		matches!(self, TokenKind::Minus | TokenKind::Not | TokenKind::BitNot)
+		matches!(self, TokenKind::Not | TokenKind::BitNot)
 	}
 }
 
@@ -66,6 +70,7 @@ pub struct Parser<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
+	// Expressions
 	BinExpr {
 		op: TokenKind,
 		lhs: Box<Node>,
@@ -75,14 +80,41 @@ pub enum Node {
 		op: TokenKind,
 		rhs: Box<Node>,
 	},
+
+	// Statements
+	Assign {
+		// name MUST be an IdentLiteral
+		name: String,
+		value: Box<Node>,
+	},
+
+	// Blocks
+	// Block {
+	// 	stmts: Vec<Box<Node>>,
+	// 	state: HashMap<String, Node>,
+	// 	parent: Option<Box<Node>>,
+	// },
+	// BlockOpen,
+	// BlockClose,
+
+	// Literals
 	NumberLiteral(f64),
-	IdentLiteral(String),
+	Ident(String),
+	BooleanLiteral(bool),
 	StringLiteral(String),
 }
 
 impl Node {
 	fn is_unary_op_ready_node(&self) -> bool {
-		matches!(self, Self::UnaryExpr { op: _, rhs: _ } | Self::NumberLiteral(_) | Self::IdentLiteral(_))
+		matches!(
+			self, Self::UnaryExpr { op: _, rhs: _ }
+				| Self::BooleanLiteral(_)
+				| Self::Ident(_)
+		)
+	}
+
+	fn is_stmt(&self) -> bool {
+		matches!(self, Self::Assign { name: _, value: _ })
 	}
 }
 
@@ -94,8 +126,9 @@ impl<'a> Parser<'a> {
 		}
 	}
 
-	pub fn parse(&mut self) -> Vec<TokenKind> {
+	pub fn parse(&mut self) -> Vec<Vec<TokenKind>> {
 		let mut out_stack = Vec::new();
+		let mut fin_stack = Vec::new();
 
 		for token in self.tokens {
 			if token.kind.is_op() {
@@ -112,6 +145,15 @@ impl<'a> Parser<'a> {
 				} else {
 					self.precedence_based_pushpop(&mut out_stack, token);
 				}
+			} else if token.kind == TokenKind::Delimeter {
+				// TODO: if not func
+				for tok in self.op_stack.clone().into_iter().rev() {
+					out_stack.push(tok);
+				}
+				fin_stack.push(out_stack);
+
+				self.op_stack = Vec::new();
+				out_stack = Vec::new();
 			} else {
 				out_stack.push(token.kind);
 			}
@@ -119,9 +161,12 @@ impl<'a> Parser<'a> {
 		for tok in self.op_stack.clone().into_iter().rev() {
 			out_stack.push(tok);
 		}
+		if !out_stack.is_empty() {
+			fin_stack.push(out_stack);
+		}
 		// TODO: error handling: op stack should be empty (specifically, it
 		// should be parenthesis-free)
-		out_stack
+		fin_stack
 	}
 
 	fn precedence_based_pushpop(
@@ -143,7 +188,8 @@ impl<'a> Parser<'a> {
 						}
 						_ => panic!(
 							"Unexpected associativity check on non-operator \
-							 token!"
+							 token: {:?}",
+							token
 						),
 					},
 					Ordering::Less => {
@@ -160,56 +206,101 @@ impl<'a> Parser<'a> {
 	}
 }
 
-pub fn gen_parse_tree(out_stack: Vec<TokenKind>) -> Node {
+pub fn gen_parse_tree(out_stack: Vec<Vec<TokenKind>>) -> Vec<Node> {
 	let mut node_stack = Vec::new();
+	let mut stmt_stack = Vec::new();
 
-	for token in &out_stack {
-		if token.is_un_op()
-			&& (node_stack.last().is_none()
-				|| node_stack
-					.iter()
-					.all(|node: &Node| node.is_unary_op_ready_node()))
-		{
-			let rhs = Box::new(node_stack.pop().unwrap());
-			node_stack.push(Node::UnaryExpr {
-				op: token.clone(),
-				rhs,
-			});
-		} else if token.is_op() {
-			let rhs = Box::new(node_stack.pop().unwrap());
-			let lhs = Box::new(node_stack.pop().unwrap());
+	for stmt in &out_stack {
+		for token in stmt {
+			if token.is_un_op()
+				|| (token == &TokenKind::Minus
+					&& (node_stack.last().is_none()
+						|| node_stack
+							.iter()
+							.all(|node: &Node| node.is_unary_op_ready_node())))
+			{
+				let rhs = Box::new(node_stack.pop().unwrap());
+				node_stack.push(Node::UnaryExpr {
+					op: token.clone(),
+					rhs,
+				});
+			} else if token.is_op() {
+				let rhs = Box::new(node_stack.pop().unwrap());
+				let lhs = node_stack.pop().unwrap();
 
-			node_stack.push(Node::BinExpr {
-				op: token.clone(),
-				lhs,
-				rhs,
-			})
-		} else {
-			match token.clone() {
-				TokenKind::Ident(i) => node_stack.push(Node::IdentLiteral(i)),
-				TokenKind::Number(num) => {
-					node_stack.push(Node::NumberLiteral(num))
+				if token == &TokenKind::Assign {
+					if let Node::Ident(name) = lhs {
+						node_stack.push(Node::Assign { name, value: rhs })
+					} else {
+						panic!(
+							"Cannot assign non-ident-literal to a value: {:?}",
+							lhs
+						);
+					}
+				} else {
+					node_stack.push(Node::BinExpr {
+						op: token.clone(),
+						lhs: Box::new(lhs),
+						rhs,
+					})
 				}
-				TokenKind::String(s) => node_stack.push(Node::StringLiteral(s)),
-				_ => panic!("Unrecognized non-op token!"),
+			} else {
+				match token {
+					TokenKind::Ident(i) => {
+						node_stack.push(Node::Ident(i.clone()))
+					}
+					TokenKind::Number(num) => {
+						node_stack.push(Node::NumberLiteral(*num))
+					}
+					TokenKind::String(s) => {
+						node_stack.push(Node::StringLiteral(s.clone()))
+					}
+					TokenKind::True => {
+						node_stack.push(Node::BooleanLiteral(true))
+					}
+					TokenKind::False => {
+						node_stack.push(Node::BooleanLiteral(false))
+					}
+					// TokenKind::LBrace => node_stack.push(Node::BlockOpen),
+					// TokenKind::RBrace => node_stack.push(Node::BlockClose),
+					_ => panic!("Unrecognized non-op token: {:#?}", token),
+				}
 			}
 		}
+
+		if let Some(node) = node_stack.get(0) {
+			if node.is_stmt() {
+				stmt_stack.push(node_stack[0].clone());
+			} else {
+				panic!("Encountered non-statement node: {:?}", node_stack[0]);
+			}
+		}
+
+		node_stack = Vec::new();
 	}
 
-	node_stack[0].clone()
+	stmt_stack
 }
 
 #[cfg(test)]
 mod test {
-	use super::{gen_parse_tree, Node::*, Parser, TokenKind::*};
+	use super::{gen_parse_tree, Node, Parser, TokenKind};
 	use crate::Lexer;
+	use pretty_assertions::assert_eq;
 
 	#[test]
 	fn postfix_stack_simple() {
 		let tok_stream = Lexer::new("1+1");
 		let stack = Parser::new(tok_stream).parse();
 
-		assert_eq!(stack, vec![Number(1.), Number(1.), Plus])
+		assert_eq!(
+			stack,
+			vec![vec![
+				TokenKind::Number(1.),
+				TokenKind::Number(1.),
+				TokenKind::Plus
+			]]
+		)
 	}
 
 	#[test]
@@ -219,73 +310,74 @@ mod test {
 
 		assert_eq!(
 			stack,
-			vec![
-				Ident("A".into()),
-				Ident("B".into()),
-				Ident("C".into()),
-				Ident("D".into()),
-				Multiply,
-				Plus,
-				Multiply,
-				Ident("E".into()),
-				Plus,
-			]
+			vec![vec![
+				TokenKind::Ident("A".into()),
+				TokenKind::Ident("B".into()),
+				TokenKind::Ident("C".into()),
+				TokenKind::Ident("D".into()),
+				TokenKind::Multiply,
+				TokenKind::Plus,
+				TokenKind::Multiply,
+				TokenKind::Ident("E".into()),
+				TokenKind::Plus,
+			]]
 		)
 	}
 
 	#[test]
-	fn parse_tree_from_postfix_stack() {
-		let tok_stream = Lexer::new("A * (B + C * D) + E");
+	fn gen_complex_parse_tree() {
+		let tok_stream =
+			Lexer::new("z = 1 - 1 * 7 - 4 / 3; l = -z + 7 - 2 + 1 / 3");
 		let stack = Parser::new(tok_stream).parse();
-		let tree = gen_parse_tree(stack);
+		let stmts = gen_parse_tree(stack);
 
 		assert_eq!(
-			BinExpr {
-				op: Plus,
-				lhs: Box::new(BinExpr {
-					op: Multiply,
-					lhs: Box::new(IdentLiteral("A".into())),
-					rhs: Box::new(BinExpr {
-						op: Plus,
-						lhs: Box::new(IdentLiteral("B".into())),
-						rhs: Box::new(BinExpr {
-							op: Multiply,
-							lhs: Box::new(IdentLiteral("C".into())),
-							rhs: Box::new(IdentLiteral("D".into())),
+			stmts,
+			vec![
+				Node::Assign {
+					name: "z".into(),
+					value: Box::new(Node::BinExpr {
+						op: TokenKind::Minus,
+						lhs: Box::new(Node::BinExpr {
+							op: TokenKind::Minus,
+							lhs: Box::new(Node::NumberLiteral(1.0)),
+							rhs: Box::new(Node::BinExpr {
+								op: TokenKind::Multiply,
+								lhs: Box::new(Node::NumberLiteral(1.0)),
+								rhs: Box::new(Node::NumberLiteral(7.0)),
+							}),
+						}),
+						rhs: Box::new(Node::BinExpr {
+							op: TokenKind::Divide,
+							lhs: Box::new(Node::NumberLiteral(4.0)),
+							rhs: Box::new(Node::NumberLiteral(3.0)),
 						}),
 					}),
-				}),
-				rhs: Box::new(IdentLiteral("E".into())),
-			},
-			tree
-		);
-	}
-
-	#[test]
-	fn parse_tree_from_postfix_stack_complex() {
-		let tok_stream = Lexer::new("B * C + A / Z - Y");
-		let stack = Parser::new(tok_stream).parse();
-		let tree = gen_parse_tree(stack);
-
-		assert_eq!(
-			tree,
-			BinExpr {
-				op: Minus,
-				lhs: Box::new(BinExpr {
-					op: Plus,
-					lhs: Box::new(BinExpr {
-						op: Multiply,
-						lhs: Box::new(IdentLiteral("B".into())),
-						rhs: Box::new(IdentLiteral("C".into())),
+				},
+				Node::Assign {
+					name: "l".into(),
+					value: Box::new(Node::BinExpr {
+						op: TokenKind::Plus,
+						lhs: Box::new(Node::BinExpr {
+							op: TokenKind::Minus,
+							lhs: Box::new(Node::BinExpr {
+								op: TokenKind::Plus,
+								lhs: Box::new(Node::UnaryExpr {
+									op: TokenKind::Minus,
+									rhs: Box::new(Node::Ident("z".into())),
+								}),
+								rhs: Box::new(Node::NumberLiteral(7.0)),
+							}),
+							rhs: Box::new(Node::NumberLiteral(2.0)),
+						}),
+						rhs: Box::new(Node::BinExpr {
+							op: TokenKind::Divide,
+							lhs: Box::new(Node::NumberLiteral(1.0)),
+							rhs: Box::new(Node::NumberLiteral(3.0)),
+						}),
 					}),
-					rhs: Box::new(BinExpr {
-						op: Divide,
-						lhs: Box::new(IdentLiteral("A".into())),
-						rhs: Box::new(IdentLiteral("Z".into())),
-					}),
-				}),
-				rhs: Box::new(IdentLiteral("Y".into())),
-			}
-		);
+				},
+			]
+		)
 	}
 }

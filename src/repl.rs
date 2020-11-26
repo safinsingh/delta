@@ -6,7 +6,7 @@ use crate::{
 use std::{io, io::Write};
 
 const REPL_CHAR: &str = "◭ ";
-const REPL_VERSION: &str = "0.1.0";
+const REPL_VERSION: &str = "0.1.1";
 
 pub(crate) fn repl() -> io::Result<()> {
 	println!("Delta v{} REPL", REPL_VERSION);
@@ -24,9 +24,11 @@ pub(crate) fn repl() -> io::Result<()> {
 			_ => {
 				let tok_stream = Lexer::new(input.trim());
 				let stack = Parser::new(tok_stream).parse();
-				let tree = gen_parse_tree(stack);
 
-				println!("{:#?}", tree);
+				let tree = gen_parse_tree(stack);
+				for node in tree {
+					println!("{:#?}", node.eval());
+				}
 			}
 		}
 	}

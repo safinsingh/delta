@@ -1,5 +1,8 @@
 [package]
 name = "delta"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["safinsingh <safin.singh@gmail.com>"]
 edition = "2018"
+
+[dev-dependencies]
+pretty_assertions = "0.6.1"

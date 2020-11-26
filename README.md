@@ -27,9 +27,12 @@
     - [x] literals (i think)
     - [ ] fn calls, fn defs
     - [ ] match patterns
-  - [ ] ast
   - [ ] `[LONG-TERM]` type-check tree
   - [ ] `[LONG-TERM]` bytecode generator
 - [ ] evaluator
+  - [ ] impl std::ops::\* for NodeResult
+    - [x] add
+    - [x] sub
+    - [x] (logical) not
 - [ ] vm
   - [ ] error handling

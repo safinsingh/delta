@@ -1,7 +1,4 @@
-use crate::{
-	lexer::Lexer,
-	parser::{gen_parse_tree, Parser},
-};
+use crate::{lexer::Lexer, parser::Parser};
 
 use std::{io, io::Write};
 
@@ -24,11 +21,6 @@ pub(crate) fn repl() -> io::Result<()> {
 			_ => {
 				let tok_stream = Lexer::new(input.trim());
 				let stack = Parser::new(tok_stream).parse();
-
-				let tree = gen_parse_tree(stack);
-				for node in tree {
-					println!("{:#?}", node.eval());
-				}
 			}
 		}
 	}

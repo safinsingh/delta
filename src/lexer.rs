@@ -16,7 +16,8 @@ pub enum TokenKind {
 	And,
 	Or,
 	Assign,
-	Equate,
+	Eq,
+	NotEq,
 
 	// Prefix Operators
 	BitNot,
@@ -261,7 +262,10 @@ impl<'a> Iterator for Lexer<'a> {
 			';' => self.delimeter(false),
 			' ' | '\t' => self.whitespace(),
 			'=' if next_char == Some('=') => {
-				self.double_char_token(TokenKind::Equate)
+				self.double_char_token(TokenKind::Eq)
+			}
+			'!' if next_char == Some('=') => {
+				self.double_char_token(TokenKind::NotEq)
 			}
 			'=' => self.single_char_token(TokenKind::Assign),
 			'(' => self.single_char_token(TokenKind::LParen),
@@ -380,8 +384,22 @@ mod test {
 
 		assert_eq!(
 			Token {
-				kind: TokenKind::Equate,
+				kind: TokenKind::Eq,
 				span: (1, 2)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_not_equate() {
+		let input = "!=";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::NotEq,
+				span: (1, 0)
 			},
 			lexer.next().unwrap()
 		)

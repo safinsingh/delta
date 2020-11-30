@@ -2,13 +2,13 @@
 
 use std::{env, fs, io};
 
-mod eval;
+mod ast;
 mod lexer;
 mod parser;
 mod repl;
 
 use lexer::Lexer;
-use parser::{gen_parse_tree, Parser};
+use parser::Parser;
 
 fn main() -> io::Result<()> {
 	let mut args: Vec<String> = env::args().collect();
@@ -23,9 +23,6 @@ fn main() -> io::Result<()> {
 				let content = fs::read_to_string(&file)?;
 				let tok_stream = Lexer::new(&content);
 				let stack = Parser::new(tok_stream).parse();
-				let tree = gen_parse_tree(stack);
-
-				println!("{:#?}", tree);
 			}
 		}
 	}

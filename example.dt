@@ -1,4 +1,4 @@
-import [std]
+import { std }
 
 fun add_one(in) {
 	return in + 1

@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
 				// associative))) AND the top of the op stack is not a left
 				// parentheses, DO pop operators from the operator stack onto
 				// the output stack
-				while self.op_stack.len() > 0
+				while !self.op_stack.is_empty()
 					&& (self.op_stack.last().map(|op| op.get_precedence())
 						> Some(token.get_precedence())
 						|| (self.op_stack.last().map(|op| op.get_precedence())

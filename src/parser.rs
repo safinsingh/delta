@@ -16,7 +16,7 @@ impl<'a> Parser<'a> {
 		}
 	}
 
-	pub fn parse(&mut self) {
+	pub fn parse(&mut self) -> Vec<Token> {
 		let mut out_stack = Vec::new();
 
 		for token in self.tokens {
@@ -83,5 +83,46 @@ impl<'a> Parser<'a> {
 		while !self.op_stack.is_empty() {
 			out_stack.push(self.op_stack.pop().unwrap());
 		}
+
+		out_stack
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	use crate::lexer::{Lexer, Token, TokenKind::*};
+
+	#[test]
+	fn gen_postfix_stack() {
+		let lexer = Lexer::new("1 + 2 * 3");
+		let stack = Parser::new(lexer).parse();
+
+		assert_eq!(
+			stack,
+			vec![
+				Token {
+					kind: Number(1.0),
+					span: (1, 0),
+				},
+				Token {
+					kind: Number(2.0),
+					span: (1, 4),
+				},
+				Token {
+					kind: Number(3.0),
+					span: (1, 8),
+				},
+				Token {
+					kind: Multiply,
+					span: (1, 6),
+				},
+				Token {
+					kind: Plus,
+					span: (1, 2),
+				},
+			]
+		)
 	}
 }

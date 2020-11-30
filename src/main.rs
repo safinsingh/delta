@@ -1,4 +1,7 @@
 #![allow(clippy::unnecessary_wraps)]
+#![deny(missing_docs)]
+
+//! The Delta programming language
 
 use std::{env, fs, io};
 
@@ -21,8 +24,10 @@ fn main() -> io::Result<()> {
 			args.remove(0);
 			for file in args {
 				let content = fs::read_to_string(&file)?;
-				let tok_stream = Lexer::new(&content);
-				let stack = Parser::new(tok_stream).parse();
+				let lexer = Lexer::new(content.trim());
+				let stack = Parser::new(lexer).parse();
+
+				println!("{:#?}", stack);
 			}
 		}
 	}

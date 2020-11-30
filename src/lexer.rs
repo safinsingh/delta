@@ -30,6 +30,7 @@ pub enum TokenKind {
 	Match,
 	While,
 	For,
+	Let,
 
 	// Symbols
 	LParen,
@@ -100,13 +101,7 @@ impl<'a> Lexer<'a> {
 	}
 
 	fn get_char_raw(&self, pos: Option<usize>) -> Option<char> {
-		let nth = |x| self.input.chars().nth(x);
-
-		if let Some(p) = pos {
-			nth(p)
-		} else {
-			nth(self.position)
-		}
+		self.input.chars().nth(pos.unwrap_or(self.position))
 	}
 
 	fn peek(&self) -> Option<char> {
@@ -162,6 +157,7 @@ impl<'a> Lexer<'a> {
 			"match" => TokenKind::Match,
 			"while" => TokenKind::While,
 			"for" => TokenKind::For,
+			"let" => TokenKind::Let,
 			_ => TokenKind::Ident(str),
 		};
 
@@ -843,6 +839,20 @@ mod test {
 		assert_eq!(
 			Token {
 				kind: TokenKind::For,
+				span: (1, 0)
+			},
+			lexer.next().unwrap()
+		)
+	}
+
+	#[test]
+	fn lex_let() {
+		let input = "let";
+		let mut lexer = Lexer::new(input);
+
+		assert_eq!(
+			Token {
+				kind: TokenKind::Let,
 				span: (1, 0)
 			},
 			lexer.next().unwrap()

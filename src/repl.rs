@@ -19,8 +19,10 @@ pub(crate) fn repl() -> io::Result<()> {
 		match input.trim() {
 			"exit" => break,
 			_ => {
-				let tok_stream = Lexer::new(input.trim());
-				let stack = Parser::new(tok_stream).parse();
+				let lexer = Lexer::new(input.trim());
+				let stack = Parser::new(lexer).parse();
+
+				println!("{:#?}", stack);
 			}
 		}
 	}

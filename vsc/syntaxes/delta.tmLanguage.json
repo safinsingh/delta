@@ -10,6 +10,12 @@
 		},
 		{
 			"include": "#numbers"
+		},
+		{
+			"include": "#modules"
+		},
+		{
+			"include": "#comment"
 		}
 	],
 	"repository": {
@@ -17,7 +23,7 @@
 			"patterns": [
 				{
 					"name": "keyword.control.delta",
-					"match": "\\b(fun|if|return|true|false|match|while|for|import)\\b"
+					"match": "\\b(fun|if|return|true|false|match|while|for|import|let)\\b"
 				}
 			]
 		},
@@ -37,6 +43,22 @@
 				{
 					"name": "constant.numeric",
 					"match": "\\b((0x[0-9a-fA-F]+)|(0[0-7]+i?)|(\\d+([Ee]\\d+)?i?)|(\\d+[Ee][-+]\\d+i?))\\b"
+				}
+			]
+		},
+		"modules": {
+			"patterns": [
+				{
+					"name": "variable",
+					"match": "(?<!\\.)\\b\\w+(?=\\.)"
+				}
+			]
+		},
+		"comment": {
+			"patterns": [
+				{
+					"name": "comment.line",
+					"match": "^//.*"
 				}
 			]
 		}

@@ -4,14 +4,14 @@ fun add_one(in) {
 	return in + 1
 }
 
-three = add_one(2)
+let three = add_one(2)
 match three {
 	3 -> std.print("success!")
 	2 -> std.print("failed!")
 }
 
 if add_one(3) != add_one(2) {
-	xor = 3 ^ 6
+	let xor = 3 ^ 6
 	if xor == 5 {
 		std.print(c)
 	}

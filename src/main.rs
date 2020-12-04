@@ -1,7 +1,6 @@
 #![allow(clippy::unnecessary_wraps)]
-#![deny(missing_docs)]
 
-//! The Delta programming language
+//! The Delta Programming Language
 
 use std::{env, fs, io};
 

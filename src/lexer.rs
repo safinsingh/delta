@@ -80,9 +80,9 @@ impl<'a> Lexer<'a> {
 		self.position += chars;
 	}
 
-	fn single_char_token(&mut self, tok: TokenKind) -> Option<Token> {
+	fn n_char_token(&mut self, tok: TokenKind, n: usize) -> Option<Token> {
 		let pos = self.cursor;
-		self.translate(1);
+		self.translate(n);
 
 		Some(Token {
 			kind: tok,
@@ -90,14 +90,12 @@ impl<'a> Lexer<'a> {
 		})
 	}
 
-	fn double_char_token(&mut self, tok: TokenKind) -> Option<Token> {
-		let pos = self.cursor;
-		self.translate(2);
+	fn single_char_token(&mut self, tok: TokenKind) -> Option<Token> {
+		self.n_char_token(tok, 1)
+	}
 
-		Some(Token {
-			kind: tok,
-			span: pos,
-		})
+	fn double_char_token(&mut self, tok: TokenKind) -> Option<Token> {
+		self.n_char_token(tok, 2)
 	}
 
 	fn get_char_raw(&self, pos: Option<usize>) -> Option<char> {
@@ -245,22 +243,18 @@ impl<'a> Iterator for Lexer<'a> {
 	type Item = Token;
 
 	fn next(&mut self) -> Option<Token> {
-		let current_char = self.get_char_raw(None);
-		let next_char = self.get_char_raw(Some(self.position + 1));
+		let current_char = self.get_char_raw(None)?;
 
-		if current_char == None {
-			return None;
-		}
-		match current_char.unwrap() {
-			'/' if next_char == Some('/') => self.comment(),
+		match current_char {
+			'/' if self.peek() == Some('/') => self.comment(),
 			'"' => self.string(),
 			'\n' => self.delimeter(true),
 			';' => self.delimeter(false),
 			' ' | '\t' => self.whitespace(),
-			'=' if next_char == Some('=') => {
+			'=' if self.peek() == Some('=') => {
 				self.double_char_token(TokenKind::Eq)
 			}
-			'!' if next_char == Some('=') => {
+			'!' if self.peek() == Some('=') => {
 				self.double_char_token(TokenKind::NotEq)
 			}
 			'=' => self.single_char_token(TokenKind::Assign),
@@ -270,7 +264,7 @@ impl<'a> Iterator for Lexer<'a> {
 			'}' => self.single_char_token(TokenKind::RBrace),
 			'[' => self.single_char_token(TokenKind::LBracket),
 			']' => self.single_char_token(TokenKind::RBracket),
-			'-' if next_char == Some('>') => {
+			'-' if self.peek() == Some('>') => {
 				self.double_char_token(TokenKind::MatchArm)
 			}
 			'+' => self.single_char_token(TokenKind::Plus),
@@ -278,18 +272,18 @@ impl<'a> Iterator for Lexer<'a> {
 			'*' => self.single_char_token(TokenKind::Multiply),
 			'/' => self.single_char_token(TokenKind::Divide),
 			'%' => self.single_char_token(TokenKind::Mod),
-			'<' if next_char == Some('=') => {
+			'<' if self.peek() == Some('=') => {
 				self.double_char_token(TokenKind::LessEq)
 			}
-			'>' if next_char == Some('=') => {
+			'>' if self.peek() == Some('=') => {
 				self.double_char_token(TokenKind::GreaterEq)
 			}
 			'<' => self.single_char_token(TokenKind::Less),
 			'>' => self.single_char_token(TokenKind::Greater),
-			'&' if next_char == Some('&') => {
+			'&' if self.peek() == Some('&') => {
 				self.double_char_token(TokenKind::And)
 			}
-			'|' if next_char == Some('|') => {
+			'|' if self.peek() == Some('|') => {
 				self.double_char_token(TokenKind::Or)
 			}
 			'&' => self.single_char_token(TokenKind::BitAnd),
@@ -302,9 +296,8 @@ impl<'a> Iterator for Lexer<'a> {
 			'.' => self.single_char_token(TokenKind::Period),
 			'A'..='Z' | 'a'..='z' => self.identifier(),
 			'0'..='9' => self.number(),
-			_ => self.single_char_token(TokenKind::Undefined(
-				current_char.unwrap().into(),
-			)),
+			_ => self
+				.single_char_token(TokenKind::Undefined(current_char.into())),
 		}
 	}
 }
